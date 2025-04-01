@@ -44,6 +44,8 @@
 /* HALCoGen generated source. */
 #include "emac.c"
 
+static inline __attribute__((always_inline)) uint32_t __rev(uint32_t value);
+
 #define EMAC_INT_CORE0_RX_THRESH		(0x0U)		// Acknowledge C0RXTHRESH Interrupt
 #define EMAC_INT_CORE0_MISC				(0x3U)		// Acknowledge C0MISC Interrupt (STATPEND, HOSTPEND, MDIO LINKINT0, MDIO USERINT0)
 #define EMAC_INT_CORE1_RX_THRESH		(0x4U)		// Acknowledge C1RXTHRESH Interrupt
@@ -107,9 +109,25 @@
 
 /* Byte swap macro */
 #define BYTE_SWAP(x)	__rev(x)
-//#define BYTE_SWAP(x)	EMACSwizzleData(x)
+// #define BYTE_SWAP(x)	EMACSwizzleData(x)
 
-/* Interrupt macros */
+/* Interrupt macros *//**
+  \brief   Reverse byte order (32 bit)
+  \details Reverses the byte order in unsigned integer value. For example, 0x12345678 becomes 0x78563412.
+  \param [in]    value  Value to reverse
+  \return               Reversed value
+ */
+static inline __attribute__((always_inline)) uint32_t __rev(uint32_t value)
+{
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+  return __builtin_bswap32(value);
+#else
+  uint32_t result;
+
+  __ASM ("rev %0, %1" : __CMSIS_GCC_OUT_REG (result) : __CMSIS_GCC_USE_REG (value) );
+  return result;
+#endif
+}
 /* Interrupt makr�k */
 #ifndef traceEMAC_INT_CORE0_RX_THRESH
 	#define traceEMAC_INT_CORE0_RX_THRESH()
@@ -337,7 +355,7 @@ BaseType_t xNetworkInterfaceOutput(xNetworkBufferDescriptor_t * const pxDescript
 		pxTransmitBufferDescriptor->next = NULL;
 
 		prvDisableEMACInterrupts();			/* Start of the critcal section. */
-		if(HWREG(hdkif->emac_base + EMAC_TXHDP((uint32)EMAC_CHANNELNUMBER)) == NULL)
+		if(!HWREG(hdkif->emac_base + EMAC_TXHDP((uint32)EMAC_CHANNELNUMBER)))
 		{
 			/* Elind�tjuk az �tvitelt az EMAC Tx Hdr DescPtr �r�s�val... */
 			/* Start transmission by writing EMAC Tx Hdr DescPtr, if EMAC is not running... */
@@ -812,9 +830,9 @@ static void prvEmacDMAInit(hdkif_t *hdkif)
       for(; i<(SIZE_EMAC_CTRL_RAM) / sizeof(emac_tx_bd_t); i++)
       {
     	  pxCurrentBD->next = NULL;
-    	  pxCurrentBD->bufptr = NULL;
-    	  pxCurrentBD->bufoff_len = NULL;
-    	  pxCurrentBD->flags_pktlen = NULL;
+    	  pxCurrentBD->bufptr = 0;
+    	  pxCurrentBD->bufoff_len = 0;
+    	  pxCurrentBD->flags_pktlen = 0;
     	  pxCurrentBD++;
       }
 }
